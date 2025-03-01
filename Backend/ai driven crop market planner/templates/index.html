@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Driven Agri-Market Planner</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <!-- AOS Animation Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" />
+  <style>
+    :root {
+      --primary-green: #2f855a;
+      --light-green: #c6f6d5;
+      --dark-green: #276749;
+      --accent-yellow: #f6e05e;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f9fafb;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c6f6d5' fill-opacity='0.3'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    #map {
+      height: 500px;
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-green {
+      position: relative;
+      border: none;
+      border-radius: 1rem;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .card-green:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 25px rgba(0,0,0,0.12);
+    }
+
+    .farm-icon-bg {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      font-size: 80px;
+      opacity: 0.05;
+      color: var(--primary-green);
+      z-index: 0;
+    }
+
+    .form-container {
+      background-color: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .form-header {
+      background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+      color: white;
+      padding: 20px;
+      border-radius: 16px 16px 0 0;
+    }
+
+    input.form-control, select.form-select {
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      transition: all 0.3s ease;
+    }
+
+    input.form-control:focus, select.form-select:focus {
+      border-color: var(--primary-green);
+      box-shadow: 0 0 0 3px rgba(47, 133, 90, 0.2);
+    }
+
+    .submit-btn {
+      background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+      border: none;
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(47, 133, 90, 0.4);
+    }
+
+    .submit-btn:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: all 0.5s ease;
+    }
+
+    .submit-btn:hover:before {
+      left: 100%;
+    }
+
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .data-row:last-child {
+      border-bottom: none;
+    }
+
+    .data-label {
+      font-weight: 600;
+      color: #4a5568;
+    }
+
+    .data-value {
+      font-weight: 500;
+      color: var(--primary-green);
+    }
+
+    .highlight-value {
+      background-color: var(--light-green);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .farmer-card {
+      position: relative;
+      background: linear-gradient(135deg, #f0fff4, #e6fffa);
+      overflow: hidden;
+    }
+
+    .custom-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #e2e8f0;
+      outline: none;
+    }
+
+    .custom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary-green);
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: all 0.2s ease;
+    }
+
+    .custom-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+      background: var(--dark-green);
+    }
+
+    .page-title {
+      position: relative;
+      display: inline-block;
+    }
+
+    .page-title:after {
+      content: "";
+      position: absolute;
+      bottom: -10px;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(to right, var(--primary-green), transparent);
+      border-radius: 2px;
+    }
+
+    .loader {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid var(--primary-green);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+      display: none;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div class="container mx-auto my-8 px-4">
+    <h1 class="text-center text-5xl font-bold mb-8 page-title text-green-800" data-aos="fade-down">AI Driven Agri-Market Planner</h1>
+    <p class="text-center text-lg text-gray-600 mb-8" data-aos="fade-up">Find the most profitable market for your crops with our intelligent market optimizer</p>
+
+    {% if error %}
+      <div class="alert alert-danger bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+        <div class="flex">
+          <div class="py-1"><i class="fas fa-exclamation-circle text-red-500 mr-3"></i></div>
+          <div>{{ error }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="form-container mb-8" data-aos="zoom-in">
+      <div class="form-header">
+        <h2 class="text-2xl font-bold"><i class="fas fa-leaf mr-2"></i> Enter Your Farm Details</h2>
+      </div>
+      <form method="post" class="p-6" id="searchForm">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="mb-4">
+            <label for="location" class="form-label block text-lg font-medium mb-2"><i class="fas fa-map-marker-alt text-green-600 mr-2"></i> Your Location</label>
+            <div class="relative">
+              <input type="text" name="location" id="location" placeholder="e.g. New Delhi, India" class="form-control pl-10 w-full" required>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label for="crop" class="form-label block text-lg font-medium mb-2"><i class="fas fa-seedling text-green-600 mr-2"></i> Select Crop</label>
+            <div class="relative">
+              <select name="crop" id="crop" class="form-select pl-10 w-full" required>
+                {% for crop in crop_options %}
+                  <option value="{{ crop }}">{{ crop }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label for="radius" class="form-label block text-lg font-medium mb-2">
+              <i class="fas fa-compass text-green-600 mr-2"></i> Search Radius: <span id="radiusValue" class="font-semibold bg-green-100 px-2 py-1 rounded">500</span> km
+            </label>
+            <input type="range" name="radius" id="radius" min="0" max="1000" value="500" class="custom-slider w-full" oninput="document.getElementById('radiusValue').innerText = this.value">
+          </div>
+
+          <div class="mb-4">
+            <label for="quantity" class="form-label block text-lg font-medium mb-2"><i class="fas fa-weight-hanging text-green-600 mr-2"></i> Quantity (quintals)</label>
+            <div class="relative">
+              <input type="number" step="any" name="quantity" id="quantity" placeholder="20" class="form-control pl-10 w-full" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center mt-6">
+          <button type="submit" id="submitBtn" class="submit-btn w-full md:w-1/2 py-3 text-lg">
+            <i class="fas fa-search mr-2"></i> Find Best Market
+          </button>
+          <div class="loader" id="searchLoader"></div>
+        </div>
+      </form>
+    </div>
+
+    {% if result %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Optimal Market Details Card -->
+        <div class="card-green p-6 bg-white" data-aos="flip-left">
+          <h2 class="text-2xl font-bold mb-4 text-green-700"><i class="fas fa-award mr-2"></i> Optimal Market</h2>
+
+          <div class="data-row">
+            <span class="data-label">Market:</span>
+            <span class="data-value">{{ result.market }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">District:</span>
+            <span class="data-value">{{ result.district }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">State:</span>
+            <span class="data-value">{{ result.state }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Commodity:</span>
+            <span class="data-value">{{ result.commodity }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Variety:</span>
+            <span class="data-value">{{ result.variety }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Min Price:</span>
+            <span class="data-value">₹{{ result.min_price }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Max Price:</span>
+            <span class="data-value">₹{{ result.max_price }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Modal Price:</span>
+            <span class="data-value">₹{{ result.modal_price }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Avg Price:</span>
+            <span class="data-value highlight-value">₹{{ result.avg_price }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Profit:</span>
+            <span class="data-value highlight-value">₹{{ result.profit }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Distance:</span>
+            <span class="data-value">{{ result.distance }} km</span>
+          </div>
+        </div>
+
+        <!-- Farmer Home Details Card -->
+        <div class="card-green p-6 bg-white farmer-card" data-aos="flip-up">
+          <h2 class="text-2xl font-bold mb-4 text-green-700"><i class="fas fa-home mr-2"></i> Farmer Home</h2>
+
+          <div class="data-row">
+            <span class="data-label">Location:</span>
+            <span class="data-value">{{ user_location.location_text }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Crop:</span>
+            <span class="data-value">{{ user_location.crop }}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Quantity:</span>
+            <span class="data-value">{{ user_location.quantity }} quintals</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Search Radius:</span>
+            <span class="data-value">{{ radius }} km</span>
+          </div>
+
+          <div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-100">
+            <h3 class="text-lg font-semibold text-green-700 mb-2"><i class="fas fa-info-circle mr-2"></i> Quick Summary</h3>
+            <p class="text-gray-700">You can sell <span class="font-semibold">{{ user_location.quantity }} quintals</span> of <span class="font-semibold">{{ user_location.crop }}</span> at <span class="font-semibold">{{ result.market }}</span> for a profit of <span class="font-semibold text-green-700">₹{{ result.profit }}</span>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Section -->
+      <div class="card-green p-0 overflow-hidden mb-8" data-aos="fade-up">
+        <div class="bg-green-700 text-white p-4">
+          <h2 class="text-2xl font-bold"><i class="fas fa-map-marked-alt mr-2"></i> Route Map</h2>
+          <p class="opacity-80">Distance from your location to the optimal market: <span class="font-bold">{{ result.distance }} km</span></p>
+        </div>
+        <div id="map" class="rounded-none"></div>
+      </div>
+
+      <!-- Other Top Markets Section -->
+      {% if other_markets %}
+        <div class="mt-8" data-aos="fade-up">
+          <h2 class="text-3xl font-bold text-green-700 mb-4">Other Top Markets</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {% for market in other_markets %}
+              <div class="card-green p-6 bg-white" data-aos="flip-up">
+                <h2 class="text-2xl font-bold mb-4 text-green-700"><i class="fas fa-chart-line mr-2"></i> Market</h2>
+                <div class="data-row">
+                  <span class="data-label">Market:</span>
+                  <span class="data-value">{{ market.Market }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">District:</span>
+                  <span class="data-value">{{ market.District }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">State:</span>
+                  <span class="data-value">{{ market.State }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Commodity:</span>
+                  <span class="data-value">{{ market.Commodity }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Variety:</span>
+                  <span class="data-value">{{ market.Variety }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Min Price:</span>
+                  <span class="data-value">₹{{ market.Min_x0020_Price }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Max Price:</span>
+                  <span class="data-value">₹{{ market.Max_x0020_Price }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Modal Price:</span>
+                  <span class="data-value">₹{{ market.Modal_x0020_Price }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Avg Price:</span>
+                  <span class="data-value">₹{{ market.avg_price | round(2) }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Profit:</span>
+                  <span class="data-value">₹{{ (market.Modal_x0020_Price * user_location.quantity - 6 * market.distance) | round(2) }}</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Distance:</span>
+                  <span class="data-value">{{ market.distance | round(2) }} km</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <!-- Tips Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12" data-aos="fade-up" data-aos-delay="200">
+      <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
+        <div class="text-green-600 text-4xl mb-4"><i class="fas fa-truck"></i></div>
+        <h3 class="text-xl font-bold mb-2 text-gray-800">Transportation Tips</h3>
+        <p class="text-gray-600">Plan your transportation carefully. Consider bulk transport options for better cost efficiency.</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
+        <div class="text-green-600 text-4xl mb-4"><i class="fas fa-calendar-alt"></i></div>
+        <h3 class="text-xl font-bold mb-2 text-gray-800">Market Timing</h3>
+        <p class="text-gray-600">Market prices fluctuate throughout the season. Consider checking prices regularly for optimal selling time.</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
+        <div class="text-green-600 text-4xl mb-4"><i class="fas fa-coins"></i></div>
+        <h3 class="text-xl font-bold mb-2 text-gray-800">Price Negotiation</h3>
+        <p class="text-gray-600">Have knowledge of current market prices. Don't hesitate to negotiate based on quality and quantity.</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-12 text-center text-gray-500 p-4">
+      <p>© 2025 AI Driven Agri-Market Planner. Helping farmers find the best markets.</p>
+    </footer>
+  </div>
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Initialize AOS animations and form submission effects
+    document.addEventListener('DOMContentLoaded', function() {
+      AOS.init({
+        duration: 800,
+        once: true
+      });
+
+      const searchForm = document.getElementById('searchForm');
+      const submitBtn = document.getElementById('submitBtn');
+      const searchLoader = document.getElementById('searchLoader');
+
+      if (searchForm) {
+        searchForm.addEventListener('submit', function() {
+          submitBtn.innerHTML = 'Searching...';
+          submitBtn.disabled = true;
+          searchLoader.style.display = 'block';
+        });
+      }
+    });
+
+    {% if result %}
+      // Define custom icons for map markers using Font Awesome
+      var farmerIcon = L.divIcon({
+        html: '<i class="fas fa-tractor fa-2x" style="color: #2f855a;"></i>',
+        className: 'tractor-icon',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      var marketIcon = L.divIcon({
+        html: '<i class="fas fa-store fa-2x" style="color: #2b6cb0;"></i>',
+        className: 'market-icon',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      // Coordinates from the backend
+      var farmerLat = {{ user_location.latitude }};
+      var farmerLon = {{ user_location.longitude }};
+      var marketLat = {{ result.latitude }};
+      var marketLon = {{ result.longitude }};
+
+      // Determine zoom level based on distance
+      var distance = {{ result.distance }};
+      var zoomLevel = distance > 500 ? 5 : distance > 200 ? 6 : distance > 100 ? 7 : distance > 50 ? 8 : 9;
+
+      // Center the map between farmer and market
+      var centerLat = (farmerLat + marketLat) / 2;
+      var centerLon = (farmerLon + marketLon) / 2;
+
+      var map = L.map('map').setView([centerLat, centerLon], zoomLevel);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 18,
+          attribution: '© OpenStreetMap'
+      }).addTo(map);
+
+      // Farmer marker
+      L.marker([farmerLat, farmerLon], {icon: farmerIcon, title: "Farmer Home"})
+        .addTo(map)
+        .bindPopup("<div class='p-2'><strong class='text-green-700'>Your Farm</strong><br>Crop: {{ user_location.crop }}<br>Quantity: {{ user_location.quantity }} quintals</div>")
+        .bindTooltip("Your Farm", {permanent: false, direction: "top"});
+
+      // Optimal market marker
+      L.marker([marketLat, marketLon], {icon: marketIcon, title: "Optimal Market"})
+        .addTo(map)
+        .bindPopup(`<div class='p-2'>
+                      <h3 class='text-blue-700 font-bold mb-2'>Optimal Market</h3>
+                      <table class='w-full text-sm'>
+                        <tr><td class='font-semibold'>Market:</td><td>{{ result.market }}</td></tr>
+                        <tr><td class='font-semibold'>District:</td><td>{{ result.district }}</td></tr>
+                        <tr><td class='font-semibold'>State:</td><td>{{ result.state }}</td></tr>
+                        <tr><td class='font-semibold'>Commodity:</td><td>{{ result.commodity }}</td></tr>
+                        <tr><td class='font-semibold'>Avg Price:</td><td>₹{{ result.avg_price }}</td></tr>
+                        <tr><td class='font-semibold'>Profit:</td><td>₹{{ result.profit }}</td></tr>
+                        <tr><td class='font-semibold'>Distance:</td><td>{{ result.distance }} km</td></tr>
+                      </table>
+                    </div>`)
+        .bindTooltip("Optimal Market", {permanent: false, direction: "top"});
+
+      // Draw search radius circle
+      L.circle([farmerLat, farmerLon], {
+          color: 'red',
+          fillColor: '#f03',
+          fillOpacity: 0.1,
+          radius: {{ radius }} * 1000
+      }).addTo(map);
+    {% endif %}
+  </script>
+  <!-- AOS Initialization -->
+  <script>
+    AOS.init();
+  </script>
+</body>
+</html>
