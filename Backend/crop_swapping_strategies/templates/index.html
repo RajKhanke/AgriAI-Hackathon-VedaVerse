@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crop Swapping Strategy Optimizer</title>
+  <!-- Tailwind CSS CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <!-- Add Font Awesome for better icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <!-- Add Animation library -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+  <!-- Custom CSS for Enhanced UI -->
+  <style>
+    /* Custom gradient background with animation */
+    body {
+      background: linear-gradient(120deg, #e0f2f1, #f0fff4, #e8f5e9);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Card hover effects */
+    .card-hover {
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-hover:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Button animations */
+    .btn-animated {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .btn-animated:after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.5);
+      opacity: 0;
+      border-radius: 100%;
+      transform: scale(1, 1) translate(-50%);
+      transform-origin: 50% 50%;
+    }
+
+    .btn-animated:hover:after {
+      animation: ripple 1s ease-out;
+    }
+
+    @keyframes ripple {
+      0% {
+        transform: scale(0, 0);
+        opacity: 0.5;
+      }
+      100% {
+        transform: scale(20, 20);
+        opacity: 0;
+      }
+    }
+
+    /* Input focus animations */
+    .input-focus {
+      transition: all 0.3s ease;
+      border-left: 2px solid transparent;
+    }
+
+    .input-focus:focus {
+      border-left: 2px solid #4CAF50;
+      transform: translateX(3px);
+    }
+
+    /* Table row animations */
+    .table-row {
+      transition: all 0.2s ease;
+    }
+
+    .table-row:hover {
+      background-color: #f0fff4;
+    }
+
+    /* Styling for the generated plain text output */
+    .plain-output {
+      font-size: 1rem;
+      line-height: 1.8;
+      white-space: pre-wrap;  /* Preserves new lines */
+      padding: 1.5em;
+      background: #ffffff;
+      border-left: 4px solid #4CAF50;
+      border-radius: 4px;
+      color: #333;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .plain-output:hover {
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #4CAF50;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #388E3C;
+    }
+
+    /* Add crop button animation */
+    .add-row-btn {
+      transition: all 0.3s ease;
+    }
+
+    .add-row-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    /* Remove button styling */
+    .remove-btn {
+      transition: all 0.2s ease;
+      opacity: 0.7;
+    }
+
+    .remove-btn:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    /* Page title animation */
+    .title-animate {
+      animation: fadeInDown 1s ease-out;
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translate3d(0, -20px, 0);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+    }
+
+    /* Language selector animation */
+    .language-selector {
+      transition: all 0.3s ease;
+      border-bottom: 2px solid transparent;
+    }
+
+    .language-selector:hover {
+      border-bottom: 2px solid #4CAF50;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-6">
+  <div class="w-full max-w-4xl animate__animated animate__fadeIn">
+    <h1 class="text-4xl font-bold text-center text-green-700 mb-8 title-animate">
+      <i class="fas fa-seedling mr-2"></i>Crop Swapping Strategy Optimizer
+    </h1>
+
+    <form action="/" method="POST" class="bg-white shadow-lg rounded-lg px-8 pt-6 pb-8 mb-6 card-hover">
+      <!-- Farm Information -->
+      <div class="grid md:grid-cols-4 gap-4 mb-6">
+        <div>
+          <label class="block text-green-700 text-sm font-bold mb-2" for="location">
+            <i class="fas fa-map-marker-alt mr-1"></i> Location
+          </label>
+          <input class="shadow appearance-none border rounded w-full py-3 px-4 text-green-700 leading-tight focus:outline-none focus:shadow-outline input-focus"
+                 id="location" name="location" type="text" placeholder="Enter location" required />
+        </div>
+
+        <div>
+          <label class="block text-green-700 text-sm font-bold mb-2" for="season">
+            <i class="fas fa-cloud-sun mr-1"></i> Season
+          </label>
+          <select id="season" name="season" class="shadow appearance-none border rounded w-full py-3 px-4 text-green-700 leading-tight focus:outline-none focus:shadow-outline input-focus" required>
+            <option value="" disabled selected>Select Season</option>
+            <option value="Rabi">Rabi</option>
+            <option value="Kharif">Kharif</option>
+            <option value="Zaid">Zaid</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-green-700 text-sm font-bold mb-2" for="total_area">
+            <i class="fas fa-ruler-combined mr-1"></i> Total Farm Area (acres)
+          </label>
+          <input class="shadow appearance-none border rounded w-full py-3 px-4 text-green-700 leading-tight focus:outline-none focus:shadow-outline input-focus"
+                 id="total_area" name="total_area" type="number" step="0.1" placeholder="Enter total farm area" required />
+        </div>
+
+        <div>
+          <label class="block text-green-700 text-sm font-bold mb-2" for="language">
+            <i class="fas fa-language mr-1"></i> Language
+          </label>
+          <select id="language" name="language" class="shadow appearance-none border rounded w-full py-3 px-4 text-green-700 leading-tight focus:outline-none focus:shadow-outline input-focus language-selector">
+            <option value="English">English</option>
+            <option value="Marathi">Marathi</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Urdu">Urdu</option>
+            <option value="Bengali">Bengali</option>
+            <option value="Odia">Odia</option>
+            <option value="Telugu">Telugu</option>
+            <option value="Tamil">Tamil</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Dynamic Crop Details Table -->
+      <h2 class="text-2xl font-semibold text-green-600 mt-8 mb-4 text-center animate__animated animate__fadeIn">
+        <i class="fas fa-leaf mr-2"></i>Crop Details
+      </h2>
+
+      <div class="overflow-x-auto mb-6 rounded-lg shadow">
+        <table class="min-w-full divide-y divide-green-200" id="cropTable">
+          <thead class="bg-green-100">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Crop Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Area (acres)</th>
+              <th class="px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-green-200">
+            <!-- Initial Crop Row -->
+            <tr class="table-row animate__animated animate__fadeIn">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <input name="crop_name" type="text" placeholder="e.g., Tomato"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-green-700 input-focus" />
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <input name="crop_area" type="number" step="0.1" placeholder="e.g., 2 or 1.5"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-green-700 input-focus" />
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <button type="button" class="text-red-500 hover:text-red-700 remove-btn" onclick="removeRow(this)">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mb-6 flex justify-center">
+        <button type="button" onclick="addRow()"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded add-row-btn btn-animated">
+          <i class="fas fa-plus mr-2"></i>Add Crop
+        </button>
+      </div>
+
+      <div class="flex items-center justify-center">
+        <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline btn-animated" type="submit">
+          <i class="fas fa-magic mr-2"></i>Optimize Strategy
+        </button>
+      </div>
+    </form>
+
+    <!-- Render the optimized output if available -->
+    {% if result %}
+    <div class="bg-white shadow-lg rounded-lg px-8 pt-6 pb-8 animate__animated animate__fadeInUp card-hover">
+      <h2 class="text-2xl font-bold text-center text-green-700 mb-4">
+        <i class="fas fa-chart-line mr-2"></i>Optimized Crop Swapping Strategies
+      </h2>
+      <div class="plain-output">
+        {{ result|safe }}
+      </div>
+    </div>
+    {% endif %}
+
+    <footer class="text-center text-green-700 mt-6 opacity-75 animate__animated animate__fadeIn">
+      <p>© 2025 Crop Swapping Strategy Optimizer</p>
+    </footer>
+  </div>
+
+  <script>
+    // Function to add a new crop row with animation
+    function addRow() {
+      const tableBody = document.querySelector("#cropTable tbody");
+      const newRow = document.createElement("tr");
+      newRow.className = "table-row animate__animated animate__fadeIn";
+      newRow.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap">
+          <input name="crop_name" type="text" placeholder="e.g., Crop Name"
+                 class="shadow appearance-none border rounded w-full py-2 px-3 text-green-700 input-focus" />
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <input name="crop_area" type="number" step="0.1" placeholder="e.g., Area"
+                 class="shadow appearance-none border rounded w-full py-2 px-3 text-green-700 input-focus" />
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <button type="button" class="text-red-500 hover:text-red-700 remove-btn" onclick="removeRow(this)">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </td>
+      `;
+      tableBody.appendChild(newRow);
+    }
+
+    // Function to remove a crop row with animation
+    function removeRow(button) {
+      const row = button.closest("tr");
+      row.classList.add("animate__animated", "animate__fadeOut");
+
+      // Wait for animation to complete before removing the row
+      row.addEventListener("animationend", function() {
+        row.remove();
+      });
+    }
+
+    // Add form submission animation
+    document.querySelector("form").addEventListener("submit", function() {
+      this.classList.add("animate__animated", "animate__pulse");
+    });
+
+    // Animate input fields on focus
+    document.querySelectorAll("input, select").forEach(element => {
+      element.addEventListener("focus", function() {
+        this.classList.add("animate__animated", "animate__pulse");
+        this.addEventListener("animationend", function() {
+          this.classList.remove("animate__animated", "animate__pulse");
+        });
+      });
+    });
+  </script>
+</body>
+</html>
