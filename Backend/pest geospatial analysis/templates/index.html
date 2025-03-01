@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pest GeoSpatial Analytics</title>
+  <style>
+    /* Import a Google Font for a modern look */
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 800px;
+      background: #fff;
+      padding: 40px;
+      margin: 20px;
+      border-radius: 12px;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 1s ease-out;
+    }
+
+    h1 {
+      color: #2e7d32;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2.8em;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    label {
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    select, button {
+      width: 100%;
+      padding: 14px 18px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: all 0.3s ease;
+    }
+
+    select:focus, button:focus {
+      outline: none;
+      border-color: #2e7d32;
+      box-shadow: 0 0 8px rgba(46, 125, 50, 0.5);
+    }
+
+    button {
+      background-color: #2e7d32;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #276a2e;
+      transform: scale(1.02);
+    }
+
+    .note {
+      font-style: italic;
+      color: #555;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .map {
+      margin-top: 40px;
+      text-align: center;
+    }
+
+    .map h2 {
+      color: #2e7d32;
+      margin-bottom: 20px;
+      font-size: 2em;
+    }
+
+    .map img {
+      max-width: 100%;
+      border: 3px solid #2e7d32;
+      border-radius: 8px;
+      transition: opacity 0.5s ease;
+    }
+
+    .error {
+      color: red;
+      font-weight: 700;
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Pest GeoSpatial Analytics</h1>
+
+  <form method="GET" action="/">
+    <!-- Crop selection -->
+    <label for="crop">Crop:</label>
+    <select id="crop" name="crop" onchange="updatePestDropdown()">
+      <option value="">--Select Crop--</option>
+      {% for c in crops %}
+        <option value="{{ c }}" {% if selected_crop == c %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+
+    <!-- Pest selection (populated dynamically) -->
+    <label for="pest">Pest:</label>
+    <select id="pest" name="pest">
+      <option value="">--Select Pest--</option>
+      <!-- Options will be set by JavaScript based on selected crop -->
+    </select>
+
+    <!-- Year selection -->
+    <label for="year">Year:</label>
+    <select id="year" name="year" onchange="fetchWeeks()">
+      <option value="">--Select Year--</option>
+      {% for y in years %}
+        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+
+    <!-- Week selection (populated dynamically) -->
+    <label for="week">Week:</label>
+    <select id="week" name="week">
+      <option value="">--Select Week--</option>
+      {% if selected_week %}
+        <option value="{{ selected_week }}" selected>{{ selected_week }}</option>
+      {% endif %}
+    </select>
+
+    <!-- Parameter selection -->
+    <label for="param">Parameter:</label>
+    <select id="param" name="param">
+      <option value="">--Select Parameter--</option>
+      {% for code, label in params.items() %}
+        <option value="{{ code }}" {% if selected_param == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit">Load Map</button>
+    <p class="note">Select a Crop, Pest, Year, Week, and Parameter to load the corresponding map.</p>
+  </form>
+
+  {% if image_url %}
+  <div class="map" id="mapContainer">
+    <h2>Fetched Results</h2>
+    <!-- Use the proxy URL for the image -->
+    <img src="{{ image_url }}" alt="Map for {{ selected_param }} parameter" onerror="handleImageError(this)">
+    <div id="dataNotAvailable" class="error" style="display:none;">Data Not Available. Cannot plot map.</div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  // Crop-to-Pest mapping provided from the server
+  const cropToPests = {{ crop_to_pests | tojson }};
+
+  // Update the pest dropdown based on the selected crop
+  function updatePestDropdown() {
+    const cropSelect = document.getElementById("crop");
+    const pestSelect = document.getElementById("pest");
+    const selectedCrop = cropSelect.value;
+
+    pestSelect.innerHTML = "";
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "--Select Pest--";
+    pestSelect.appendChild(defaultOption);
+
+    if (selectedCrop && cropToPests[selectedCrop]) {
+      const pests = cropToPests[selectedCrop];
+      pests.forEach(function(p) {
+        const option = document.createElement("option");
+        option.value = p;
+        option.textContent = p;
+        if (p === "{{ selected_pest }}") {
+          option.selected = true;
+        }
+        pestSelect.appendChild(option);
+      });
+    }
+    if (document.getElementById("year").value) {
+      fetchWeeks();
+    }
+  }
+
+  // Fetch week options dynamically from the /fetch_weeks endpoint
+  function fetchWeeks() {
+    const crop = document.getElementById("crop").value;
+    const pest = document.getElementById("pest").value;
+    const year = document.getElementById("year").value;
+    if (!crop || !pest || !year) return;
+
+    fetch(`/fetch_weeks?crop=${crop}&pest=${pest}&year=${year}`)
+      .then(response => response.json())
+      .then(data => {
+        const weekSelect = document.getElementById("week");
+        weekSelect.innerHTML = "";
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "--Select Week--";
+        weekSelect.appendChild(defaultOption);
+
+        data.weeks.forEach(function(week) {
+          const option = document.createElement("option");
+          option.value = week;
+          option.textContent = week;
+          if (week === "{{ selected_week }}") {
+            option.selected = true;
+          }
+          weekSelect.appendChild(option);
+        });
+      })
+      .catch(err => console.error("Error fetching weeks:", err));
+  }
+
+  function handleImageError(img) {
+    img.style.display = "none";
+    document.getElementById("dataNotAvailable").style.display = "block";
+  }
+
+  window.onload = function() {
+    updatePestDropdown();
+    if ("{{ selected_year }}" && "{{ selected_crop }}" && "{{ selected_pest }}") {
+      fetchWeeks();
+    }
+  };
+</script>
+
+</body>
+</html>
