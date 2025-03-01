@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advanced Farm Geofencing & Weather Dashboard</title>
+  <!-- External CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #map {
+      height: 70vh;
+      width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .control-panel {
+      background: rgba(255,255,255,0.9);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .weather-card, .event-card {
+      transition: transform 0.2s;
+      cursor: pointer;
+    }
+    .weather-card:hover, .event-card:hover {
+      transform: translateY(-5px);
+    }
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+  </style>
+</head>
+<body class="bg-gray-100">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+  </div>
+  <div class="container-fluid py-4">
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h1 class="text-3xl font-bold">Advanced Farm Geofencing & Weather Dashboard</h1>
+          <div class="d-flex gap-2">
+            <button id="helpBtn" class="btn btn-info">
+              <i class="fas fa-question-circle"></i> Help
+            </button>
+            <button id="resetBtn" class="btn btn-warning">
+              <i class="fas fa-redo"></i> Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <!-- Search & Control Panel -->
+      <div class="col-md-3">
+        <div class="control-panel mb-4">
+          <h5 class="mb-3">Search Location</h5>
+          <div class="mb-3">
+            <input type="text" id="addressInput" class="form-control mb-2" placeholder="Enter Address">
+            <button id="addressSearchBtn" class="btn btn-primary w-100">
+              <i class="fas fa-search"></i> Search Address
+            </button>
+          </div>
+          <div class="mb-3">
+            <div class="input-group mb-2">
+              <input type="number" id="latInput" class="form-control" placeholder="Latitude" step="0.000001">
+              <input type="number" id="lngInput" class="form-control" placeholder="Longitude" step="0.000001">
+            </div>
+            <button id="coordSearchBtn" class="btn btn-primary w-100">
+              <i class="fas fa-map-marker-alt"></i> Search Coordinates
+            </button>
+          </div>
+        </div>
+        <!-- Drawing Controls -->
+        <div class="control-panel mb-4">
+          <h5 class="mb-3">Drawing Tools</h5>
+          <div class="btn-group w-100 mb-2">
+            <button id="startDrawingBtn" class="btn btn-success">Start Drawing</button>
+            <button id="clearDrawingBtn" class="btn btn-danger">Clear</button>
+          </div>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="snapToGridCheck">
+            <label class="form-check-label" for="snapToGridCheck">Snap to Grid</label>
+          </div>
+        </div>
+        <!-- Weather Settings -->
+        <div class="control-panel">
+          <h5 class="mb-3">Weather Settings</h5>
+          <div class="mb-3">
+            <label class="form-label">Radius (km)</label>
+            <input type="range" class="form-range" id="radiusSlider" min="50" max="500" step="50" value="200">
+            <span id="radiusValue">200 km</span>
+          </div>
+        </div>
+      </div>
+      <!-- Map & Data Display -->
+      <div class="col-md-9">
+        <div class="row">
+          <div class="col-12">
+            <div id="map"></div>
+          </div>
+        </div>
+        <!-- Tabbed Data Display -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                <ul class="nav nav-tabs" id="dataTabs">
+                  <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#centerWeather">Center Weather</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#surroundingWeather">Surrounding Areas</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#disasterEvents">Disaster Events</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#soilAnalysis">Soil Properties</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#soilType">Soil Classification</a>
+                  </li>
+                </ul>
+                <div class="tab-content mt-3">
+                  <div class="tab-pane fade show active" id="centerWeather">
+                    <div id="centerWeatherContent" class="row"></div>
+                  </div>
+                  <div class="tab-pane fade" id="surroundingWeather">
+                    <div id="surroundingWeatherContent" class="row">
+                      <div class="col-12">Surrounding weather markers are displayed on the map.</div>
+                      <div id="surroundingWeatherTable" class="col-12 mt-3"></div>
+                    </div>
+                  </div>
+                  <div class="tab-pane fade" id="disasterEvents">
+                    <div id="disasterEventsContent" class="row">
+                      <div class="col-12">Disaster events will be listed here.</div>
+                    </div>
+                  </div>
+                  <div class="tab-pane fade" id="soilAnalysis">
+                    <div id="soilAnalysisContent" class="row">
+                      <div class="col-12">Soil properties data will appear here.</div>
+                    </div>
+                  </div>
+                  <div class="tab-pane fade" id="soilType">
+                    <div id="soilTypeContent" class="row">
+                      <div class="col-12">Soil classification details will appear here.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">How to Use the Dashboard</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <h6>Drawing a Farm Area</h6>
+          <ol>
+            <li>Click "Start Drawing" to toggle draw mode.</li>
+            <li>Click on the map to add vertices; double-click (or click the first point) to finish.</li>
+            <li>Use "Clear" to remove the drawn area.</li>
+          </ol>
+          <h6>Weather Information</h6>
+          <ul>
+            <li>The Center Weather tab shows detailed conditions with a weather symbol and description.</li>
+            <li>The Surrounding Areas tab displays markers on the map and a table listing location, temperature, humidity, pressure, and cloud cover for 10 random surrounding points.</li>
+          </ul>
+          <h6>Disaster Events</h6>
+          <ul>
+            <li>Disaster events (e.g. floods, earthquakes) are displayed on the map as icons.</li>
+            <li>Hover over an icon to view details such as title, description, date, and type.</li>
+            <li>The Disaster Events tab lists events in a table with columns for Date, Title, Description, Location, and Type.</li>
+          </ul>
+          <h6>Soil Data</h6>
+          <ul>
+            <li>The "Soil Properties" tab shows soil parameters in a table format.</li>
+            <li>The "Soil Classification" tab displays classification details and associated probabilities.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- External Scripts -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://kit.fontawesome.com/your-fontawesome-kit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVLjWmCja331H8SuIZ4UlJdZytuYkC6Y&libraries=drawing,places"></script>
+
+  <!-- Custom JavaScript -->
+  <script>
+    let map, drawingManager, polygon, markers = [], disasterMarkers = [];
+    let centerMarker, soilMarker;
+    let isDrawing = false;
+    let infoWindow;
+    let geocoder;
+
+    // Reverse geocode helper – returns formatted address via callback
+    function reverseGeocode(lat, lng, callback) {
+      geocoder.geocode({location: {lat: lat, lng: lng}}, function(results, status) {
+        if (status === 'OK' && results[0]) {
+          callback(results[0].formatted_address);
+        } else {
+          callback("Unknown location");
+        }
+      });
+    }
+
+    // Returns weather description based on weather code
+    function getWeatherDescription(weathercode) {
+      if (weathercode === 0) return "Clear sky";
+      else if ([1,2,3].includes(weathercode)) return "Mainly clear to overcast";
+      else if ([45,48].includes(weathercode)) return "Foggy conditions";
+      else if ([51,53,55].includes(weathercode)) return "Light drizzle";
+      else if ([61,63,65].includes(weathercode)) return "Rainy conditions";
+      else if ([66,67].includes(weathercode)) return "Freezing rain";
+      else if ([71,73,75,77].includes(weathercode)) return "Snow fall";
+      else if ([80,81,82].includes(weathercode)) return "Rain showers";
+      else if ([85,86].includes(weathercode)) return "Snow showers";
+      else if ([95,96,99].includes(weathercode)) return "Thunderstorm";
+      return "Unknown weather";
+    }
+
+    // Format ISO time string into local time (HH:MM)
+    function formatTime(isoStr) {
+      let date = new Date(isoStr);
+      return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    }
+
+    // Returns weather icon URL based on weather code
+    function getWeatherIcon(weathercode) {
+      if (weathercode === 0) return "https://img.icons8.com/emoji/48/000000/sun-emoji.png";
+      else if ([1,2,3].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/sun-behind-cloud.png";
+      else if ([45,48].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/fog.png";
+      else if ([51,53,55].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/cloud-with-rain.png";
+      else if ([61,63,65].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/cloud-with-rain.png";
+      else if ([66,67].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/cloud-with-rain.png";
+      else if ([71,73,75,77].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/snowflake.png";
+      else if ([80,81,82].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/cloud-with-rain.png";
+      else if ([85,86].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/snowflake.png";
+      else if ([95,96,99].includes(weathercode)) return "https://img.icons8.com/emoji/48/000000/cloud-with-lightning.png";
+      return "https://img.icons8.com/emoji/48/000000/question-mark-emoji.png";
+    }
+
+
+
+    // Classify disaster type based on event title or category keywords
+    function classifyEventType(event) {
+      let title = "";
+      if (event.title) {
+        title = event.title.toLowerCase();
+      } else if (event.category) {
+        title = event.category.toLowerCase();
+      }
+      if (title.indexOf("flood") !== -1) return "flood";
+      if (title.indexOf("earthquake") !== -1) return "earthquake";
+      if (title.indexOf("cyclone") !== -1 || title.indexOf("hurricane") !== -1) return "cyclone";
+      if (title.indexOf("wildfire") !== -1 || title.indexOf("fire") !== -1) return "wildfire";
+      if (title.indexOf("tornado") !== -1) return "tornado";
+      return "disaster";
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 20.5937, lng: 78.9629 },
+        zoom: 5,
+        mapTypeControl: true,
+        fullscreenControl: true,
+        streetViewControl: true,
+        streetViewControlOptions: {
+          position: google.maps.ControlPosition.RIGHT_BOTTOM
+        }
+      });
+      geocoder = new google.maps.Geocoder();
+      setupDrawingManager();
+      setupEventListeners();
+      setupControls();
+      updateWeatherData();
+    }
+
+    // Toggle draw mode on click
+    document.getElementById('startDrawingBtn').addEventListener('click', function() {
+      if (drawingManager.getDrawingMode() == google.maps.drawing.OverlayType.POLYGON) {
+        drawingManager.setDrawingMode(null);
+        this.textContent = "Start Drawing";
+      } else {
+        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+        this.textContent = "Stop Drawing";
+      }
+    });
+
+    function setupDrawingManager() {
+      drawingManager = new google.maps.drawing.DrawingManager({
+        drawingMode: null,
+        drawingControl: false,
+        polygonOptions: {
+          fillColor: '#4CAF50',
+          fillOpacity: 0.3,
+          strokeWeight: 2,
+          strokeColor: '#4CAF50'
+        }
+      });
+      drawingManager.setMap(map);
+      google.maps.event.addListener(drawingManager, 'polygoncomplete', function(poly) {
+        polygon = poly;
+        isDrawing = false;
+        document.getElementById('startDrawingBtn').textContent = "Start Drawing";
+        if (document.getElementById('snapToGridCheck').checked) {
+          snapPolygonToGrid(polygon);
+        }
+        let bounds = new google.maps.LatLngBounds();
+        polygon.getPath().forEach(function(latlng) {
+          bounds.extend(latlng);
+        });
+        let center = bounds.getCenter();
+        map.setCenter(center);
+        updateWeatherData();
+      });
+    }
+
+    function snapPolygonToGrid(poly) {
+      let path = poly.getPath();
+      for (let i = 0; i < path.getLength(); i++) {
+        let pt = path.getAt(i);
+        let snapped = snapToGrid({ latLng: pt });
+        path.setAt(i, snapped);
+      }
+    }
+
+    function snapToGrid(event) {
+      const gridSize = 0.01;
+      let lat = Math.round(event.latLng.lat() / gridSize) * gridSize;
+      let lng = Math.round(event.latLng.lng() / gridSize) * gridSize;
+      return new google.maps.LatLng(lat, lng);
+    }
+
+    function setupControls() {
+      const radiusSlider = document.getElementById('radiusSlider');
+      const radiusValue = document.getElementById('radiusValue');
+      radiusSlider.addEventListener('input', function() {
+        radiusValue.textContent = `${this.value} km`;
+        updateWeatherData();
+      });
+      document.getElementById('snapToGridCheck').addEventListener('change', function() {
+        if (polygon && this.checked) {
+          snapPolygonToGrid(polygon);
+        }
+      });
+    }
+
+    function setupEventListeners() {
+      map.addListener('click', function(e) {
+        if (!isDrawing) {
+          let lat = e.latLng.lat().toFixed(6);
+          let lng = e.latLng.lng().toFixed(6);
+          showToast(`Clicked location: ${lat}, ${lng}`);
+        }
+      });
+      document.getElementById('clearDrawingBtn').addEventListener('click', clearAll);
+      document.getElementById('helpBtn').addEventListener('click', function() {
+        new bootstrap.Modal(document.getElementById('helpModal')).show();
+      });
+      document.getElementById('resetBtn').addEventListener('click', function() {
+        clearAll();
+        map.setCenter({ lat: 20.5937, lng: 78.9629 });
+        map.setZoom(5);
+        updateWeatherData();
+      });
+      document.getElementById('addressSearchBtn').addEventListener('click', searchByAddress);
+      document.getElementById('coordSearchBtn').addEventListener('click', searchByCoordinates);
+    }
+
+    function clearAll() {
+      if (polygon) {
+        polygon.setMap(null);
+        polygon = null;
+      }
+      markers.forEach(marker => marker.setMap(null));
+      markers = [];
+      disasterMarkers.forEach(marker => marker.setMap(null));
+      disasterMarkers = [];
+      if (centerMarker) {
+        centerMarker.setMap(null);
+        centerMarker = null;
+      }
+      if (soilMarker) {
+        soilMarker.setMap(null);
+        soilMarker = null;
+      }
+      document.getElementById('surroundingWeatherContent').innerHTML = `<div class="col-12">Draw farm boundary to see surrounding weather.</div>`;
+      document.getElementById('surroundingWeatherTable').innerHTML = '';
+      document.getElementById('soilAnalysisContent').innerHTML = `<div class="col-12">Soil properties data will appear here.</div>`;
+      document.getElementById('soilTypeContent').innerHTML = `<div class="col-12">Soil classification details will appear here.</div>`;
+      document.getElementById('disasterEventsContent').innerHTML = `<div class="col-12">Disaster events will be listed here.</div>`;
+    }
+
+    function searchByAddress() {
+      let address = document.getElementById('addressInput').value;
+      if (!address) {
+        showToast("Please enter an address");
+        return;
+      }
+      const geocoderLocal = new google.maps.Geocoder();
+      geocoderLocal.geocode({ address: address }, function(results, status) {
+        if (status === google.maps.GeocoderStatus.OK) {
+          let location = results[0].geometry.location;
+          map.setCenter(location);
+          map.setZoom(12);
+          updateWeatherData();
+        } else {
+          showToast("Geocode was not successful: " + status);
+        }
+      });
+    }
+
+    function searchByCoordinates() {
+      let lat = parseFloat(document.getElementById('latInput').value);
+      let lng = parseFloat(document.getElementById('lngInput').value);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        map.setCenter({ lat: lat, lng: lng });
+        updateWeatherData();
+      } else {
+        showToast("Invalid coordinates");
+      }
+    }
+
+    function updateWeatherData() {
+      showLoading(true);
+      let centerForWeather;
+      if (polygon) {
+        let bounds = new google.maps.LatLngBounds();
+        polygon.getPath().forEach(latlng => bounds.extend(latlng));
+        centerForWeather = bounds.getCenter();
+      } else {
+        centerForWeather = map.getCenter();
+      }
+      let lat = centerForWeather.lat();
+      let lng = centerForWeather.lng();
+      let radius = document.getElementById('radiusSlider').value;
+
+      // Fetch center weather
+      fetch(`/get_full_weather?lat=${lat}&lon=${lng}`)
+        .then(response => response.json())
+        .then(data => {
+          updateCenterWeatherUI(data);
+          let iconURL = getWeatherIcon(data.current_conditions.weathercode);
+          if (centerMarker) {
+            centerMarker.setPosition(centerForWeather);
+            centerMarker.setIcon({
+              url: iconURL,
+              scaledSize: new google.maps.Size(40, 40)
+            });
+          } else {
+            centerMarker = new google.maps.Marker({
+              position: centerForWeather,
+              map: map,
+              icon: {
+                url: iconURL,
+                scaledSize: new google.maps.Size(40, 40)
+              }
+            });
+          }
+        })
+        .catch(err => console.error("Error fetching center weather:", err));
+
+      // Fetch surrounding weather if polygon exists
+      if (polygon) {
+        fetch(`/get_circle_weather?lat=${lat}&lon=${lng}&radius=${radius}`)
+          .then(response => response.json())
+          .then(data => {
+            updateSurroundingWeatherTable(data);
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+            data.forEach(point => {
+              let pos = { lat: point.location.lat, lng: point.location.lon };
+              let iconURL = getWeatherIcon(point.current_weather.weathercode);
+              let markerObj = new google.maps.Marker({
+                position: pos,
+                map: map,
+                icon: {
+                  url: iconURL,
+                  scaledSize: new google.maps.Size(40, 40)
+                }
+              });
+              reverseGeocode(point.location.lat, point.location.lon, function(address) {
+                markerObj.setTitle(address);
+              });
+              markerObj.addListener('mouseover', function() {
+                let daily = point.daily || {};
+                let description = getWeatherDescription(point.current_weather.weathercode);
+                let content = `<div class="p-2">
+                  <h6>${description}</h6>
+                  <p>Temperature: ${point.current_weather.temperature}°C</p>
+                  <p>Min: ${daily.temperature_2m_min ? daily.temperature_2m_min[0] + "°C" : 'No data'}, Max: ${daily.temperature_2m_max ? daily.temperature_2m_max[0] + "°C" : 'No data'}</p>
+                  <p>Pressure: ${point.current_weather.surface_pressure || 'No data'} hPa</p>
+                  <p>Soil Moisture: ${point.current_weather.soil_moisture || 'No data'}</p>
+                  <p>Humidity: ${point.current_weather.relativehumidity || 'No data'}%</p>
+                  <p>Wind Speed: ${point.current_weather.windspeed || 'No data'} km/h</p>
+                  <p>UV Index: ${point.current_weather.uv_index || 'No data'}</p>
+                  <p>Cloud Cover: ${point.current_weather.cloudcover || 'No data'}%</p>
+                  <p>Sunrise: ${daily.sunrise ? formatTime(daily.sunrise[0]) : 'No data'}, Sunset: ${daily.sunset ? formatTime(daily.sunset[0]) : 'No data'}</p>
+                </div>`;
+                if (infoWindow) infoWindow.close();
+                infoWindow = new google.maps.InfoWindow({ content: content });
+                infoWindow.open(map, markerObj);
+              });
+              markerObj.addListener('mouseout', function() {
+                if (infoWindow) infoWindow.close();
+              });
+              markers.push(markerObj);
+            });
+          })
+          .catch(err => console.error("Error fetching surrounding weather:", err));
+      } else {
+        document.getElementById('surroundingWeatherTable').innerHTML = '';
+        markers.forEach(marker => marker.setMap(null));
+        markers = [];
+      }
+
+      // Fetch disaster events using the Ambee API
+      fetch(`/get_india_disaster_events`)
+        .then(response => response.json())
+        .then(data => {
+          console.log('Ambee disaster events data:', data);
+          updateDisasterEventsUI(data);
+        })
+        .catch(err => console.error("Error fetching disaster events:", err));
+
+      // Fetch soil properties and update soil classification
+      updateSoilAnalysis();
+      updateSoilType();
+      showLoading(false);
+    }
+
+    function updateCenterWeatherUI(data) {
+      const container = document.getElementById('centerWeatherContent');
+      container.innerHTML = '';
+      if (data.current_conditions) {
+        let iconURL = getWeatherIcon(data.current_conditions.weathercode);
+        let description = getWeatherDescription(data.current_conditions.weathercode);
+        let daily = data.daily || {};
+        let sunrise = daily.sunrise ? formatTime(daily.sunrise[0]) : 'No data';
+        let sunset = daily.sunset ? formatTime(daily.sunset[0]) : 'No data';
+        container.innerHTML = `<div class="col-12 weather-card p-3 border">
+          <div class="d-flex align-items-center">
+            <img src="${iconURL}" alt="weather icon" class="me-3"/>
+            <div>
+              <h6>${description}</h6>
+              <p>Temperature: ${data.current_conditions.temperature}°C</p>
+              <p>Min: ${daily.temperature_2m_min ? daily.temperature_2m_min[0] + "°C" : 'No data'}, Max: ${daily.temperature_2m_max ? daily.temperature_2m_max[0] + "°C" : 'No data'}</p>
+            </div>
+          </div>
+          <p>Humidity: ${data.current_conditions.humidity || 'No data'}%</p>
+          <p>Precipitation: ${daily.precipitation_sum ? daily.precipitation_sum[0] + " mm" : 'No data'}</p>
+          <p>Cloud Cover: ${data.current_conditions.cloudcover || 'No data'}%</p>
+          <p>UV Index: ${data.current_conditions.uv_index || 'No data'}</p>
+          <p>Soil Moisture: ${data.current_conditions.soil_moisture || 'No data'}</p>
+          <p>Sunrise: ${sunrise}, Sunset: ${sunset}</p>
+        </div>`;
+      } else {
+        container.innerHTML = `<div class="col-12">No data available.</div>`;
+      }
+    }
+
+    function updateSurroundingWeatherTable(data) {
+      let container = document.getElementById('surroundingWeatherTable');
+      let promises = data.map(point => {
+        return new Promise(resolve => {
+          reverseGeocode(point.location.lat, point.location.lon, function(address) {
+            resolve({ point: point, address: address });
+          });
+        });
+      });
+      Promise.all(promises).then(results => {
+        let html = '<table class="table table-bordered"><thead><tr><th>Location</th><th>Coordinates</th><th>Temperature (°C)</th><th>Humidity (%)</th><th>Pressure (hPa)</th><th>Cloud Cover (%)</th></tr></thead><tbody>';
+        results.forEach(item => {
+          let pt = item.point;
+          html += `<tr>
+            <td>${item.address}</td>
+            <td>${pt.location.lat.toFixed(4)}, ${pt.location.lon.toFixed(4)}</td>
+            <td>${pt.current_weather.temperature || 'No data'}</td>
+            <td>${pt.current_weather.relativehumidity || 'No data'}</td>
+            <td>${pt.current_weather.surface_pressure || 'No data'}</td>
+            <td>${pt.current_weather.cloudcover || 'No data'}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      });
+    }
+
+   // Updated icon selection function that accepts both event type and event name
+function getDisasterIcon(eventType, eventName) {
+  // Use eventName in lowercase; if it's empty, fall back to eventType
+  let name = eventName ? eventName.toLowerCase() : "";
+  if (!name && eventType) {
+    name = eventType.toLowerCase();
+  }
+
+  if (/\bflood\b/.test(name)) {
+    return "https://img.icons8.com/emoji/48/000000/water-wave.png";
+  }
+  if (/\b(thunderstorm|thunder)\b/.test(name)) {
+    return "https://img.icons8.com/emoji/48/000000/cloud-with-lightning.png";
+  }
+  if (/\btornado\b/.test(name)) {
+    return "https://img.icons8.com/emoji/48/000000/tornado-emoji.png";
+  }
+  if (/\b(cyclone|storm)\b/.test(name)) {
+    return "https://img.icons8.com/emoji/48/000000/cloud-with-lightning.png";
+  }
+  if (/\b(wildfire|fire)\b/.test(name)) {
+    return "https://img.icons8.com/emoji/48/000000/fire.png";
+  }
+  if (/\bearthquake\b/.test(name)) {
+    return "https://img.icons8.com/emoji/48/000000/earthquake.png";
+  }
+  return "https://img.icons8.com/emoji/48/000000/exclamation-mark-emoji.png";
+}
+
+
+
+function updateDisasterEventsUI(data) {
+  const container = document.getElementById('disasterEventsContent');
+  container.innerHTML = '';
+  // Clear existing markers from map
+  disasterMarkers.forEach(marker => marker.setMap(null));
+  disasterMarkers = [];
+
+  // Use "result" as per the Ambee API response
+  if (!data.result || !data.result.length) {
+    container.innerHTML = `<div class="col-12">No disaster events available.</div>`;
+    return;
+  }
+
+  // Filter unique events using event_name and date as a unique key
+  const uniqueMap = {};
+  const uniqueEvents = [];
+  data.result.forEach(event => {
+    const key = (event.event_name || '') + '|' + (event.date || '');
+    if (!uniqueMap[key]) {
+      uniqueMap[key] = true;
+      uniqueEvents.push(event);
+    }
+  });
+
+  // Build HTML table for disaster events
+  let tableHTML = `<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Event Name</th>
+        <th>Event Type</th>
+        <th>Location (Lat, Lng)</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  uniqueEvents.forEach(event => {
+    const eventDate = event.date || 'N/A';
+    const eventName = event.event_name || 'No Title';
+    // Use provided event_type if available, otherwise "UNKNOWN"
+    const eventType = event.event_type ? event.event_type.toUpperCase() : "UNKNOWN";
+    const lat = event.lat;
+    const lng = event.lng;
+    const locationStr = (lat && lng) ? `${parseFloat(lat).toFixed(4)}, ${parseFloat(lng).toFixed(4)}` : 'N/A';
+
+    tableHTML += `<tr>
+      <td>${eventDate}</td>
+      <td>${eventName}</td>
+      <td>${eventType}</td>
+      <td>${locationStr}</td>
+    </tr>`;
+
+    // Place a marker on the map if location is available
+    if (lat && lng) {
+      const pos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+      // Pass both eventType and eventName for icon selection
+      const iconURL = getDisasterIcon(eventType, eventName);
+      const marker = new google.maps.Marker({
+        position: pos,
+        map: map,
+        icon: {
+          url: iconURL,
+          scaledSize: new google.maps.Size(40, 40)
+        }
+      });
+      marker.addListener('mouseover', () => {
+        if (infoWindow) infoWindow.close();
+        infoWindow = new google.maps.InfoWindow({
+          content: `<div class="p-2">
+                      <h6>${eventName}</h6>
+                      <p><strong>Date:</strong> ${eventDate}</p>
+                      <p><strong>Type:</strong> ${eventType}</p>
+                      <p><strong>Location:</strong> ${locationStr}</p>
+                    </div>`
+        });
+        infoWindow.open(map, marker);
+      });
+      marker.addListener('mouseout', () => {
+        if (infoWindow) infoWindow.close();
+      });
+      disasterMarkers.push(marker);
+    }
+  });
+
+  tableHTML += `</tbody></table>`;
+  container.innerHTML = tableHTML;
+}
+
+
+    function updateSoilAnalysis() {
+      let centerForSoil;
+      if (polygon) {
+        let bounds = new google.maps.LatLngBounds();
+        polygon.getPath().forEach(latlng => bounds.extend(latlng));
+        centerForSoil = bounds.getCenter();
+      } else {
+        centerForSoil = map.getCenter();
+      }
+      let lat = centerForSoil.lat();
+      let lng = centerForSoil.lng();
+      fetch(`/get_soil_properties?lat=${lat}&lon=${lng}`)
+        .then(response => response.json())
+        .then(data => {
+          const container = document.getElementById('soilAnalysisContent');
+          if (data.soil_properties && data.soil_properties.length > 0) {
+            let html = '<div class="card p-3"><table class="table table-bordered"><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead><tbody>';
+            data.soil_properties.forEach(item => {
+              html += `<tr><td>${item[0]}</td><td>${item[1]}</td><td>${item[2]}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+          } else {
+            container.innerHTML = 'No soil properties data available.';
+          }
+        })
+        .catch(err => console.error("Error fetching soil properties:", err));
+    }
+
+    function updateSoilType() {
+      let centerForSoil;
+      if (polygon) {
+        let bounds = new google.maps.LatLngBounds();
+        polygon.getPath().forEach(latlng => bounds.extend(latlng));
+        centerForSoil = bounds.getCenter();
+      } else {
+        centerForSoil = map.getCenter();
+      }
+      let lat = centerForSoil.lat();
+      let lng = centerForSoil.lng();
+      fetch(`/get_soil_classification?lat=${lat}&lon=${lng}`)
+        .then(response => response.json())
+        .then(data => {
+           updateSoilTypeUI(data);
+           if (soilMarker) {
+             soilMarker.setMap(null);
+             soilMarker = null;
+           }
+           if (data.soil_type && data.soil_category !== "unknown") {
+             let iconURL = getSoilIcon(data.soil_category);
+             let soilMarkerPosition = centerForSoil;
+             if (polygon) {
+               soilMarkerPosition = new google.maps.LatLng(
+                 centerForSoil.lat() + 0.03,
+                 centerForSoil.lng() + 0.03
+               );
+             }
+             soilMarker = new google.maps.Marker({
+               position: soilMarkerPosition,
+               map: map,
+               icon: {
+                 url: iconURL,
+                 scaledSize: new google.maps.Size(40, 40)
+               }
+             });
+             soilMarker.addListener('mouseover', function() {
+               if (infoWindow) infoWindow.close();
+               infoWindow = new google.maps.InfoWindow({
+                 content: `<div class="p-2"><h6>Soil Classification</h6><p>${data.soil_type} (${data.soil_category})</p></div>`
+               });
+               infoWindow.open(map, soilMarker);
+             });
+             soilMarker.addListener('mouseout', function() {
+               if (infoWindow) infoWindow.close();
+             });
+           }
+        })
+        .catch(err => console.error("Error fetching soil classification:", err));
+    }
+
+    function updateSoilTypeUI(data) {
+      let container = document.getElementById('soilTypeContent');
+      if (data.soil_type && data.soil_category !== "unknown") {
+        let html = `<div class="card p-3">
+          <h6>Soil Classification</h6>
+          <p>Dominant Soil Type: ${data.soil_type} (${data.soil_category})</p>`;
+        if (data.soil_probabilities && data.soil_probabilities.length > 0) {
+          html += `<div class="mt-3"><h6>Probabilities</h6><table class="table table-bordered"><thead><tr><th>Soil Type</th><th>Probability (%)</th></tr></thead><tbody>`;
+          data.soil_probabilities.forEach(prob => {
+            html += `<tr><td>${prob[0]}</td><td>${prob[1]}</td></tr>`;
+          });
+          html += '</tbody></table></div>';
+        }
+        html += `</div>`;
+        container.innerHTML = html;
+      } else {
+        container.innerHTML = 'No soil classification data available.';
+      }
+    }
+
+    function getSoilIcon(soil_category) {
+      if (soil_category === "black") return "https://img.icons8.com/emoji/48/000000/black-diamond-emoji.png";
+      else if (soil_category === "red") return "https://img.icons8.com/emoji/48/ff0000/red-diamond-emoji.png";
+      else if (soil_category === "alluvial") return "https://img.icons8.com/emoji/48/008000/green-diamond-emoji.png";
+      else if (soil_category === "desert") return "https://img.icons8.com/emoji/48/8b4513/brown-diamond-emoji.png";
+      return "";
+    }
+
+    function showLoading(show) {
+      document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+    }
+
+    function showToast(message) {
+      Toastify({
+        text: message,
+        duration: 3000,
+        gravity: "top",
+        position: "right",
+        backgroundColor: "#333",
+        stopOnFocus: true
+      }).showToast();
+    }
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>
