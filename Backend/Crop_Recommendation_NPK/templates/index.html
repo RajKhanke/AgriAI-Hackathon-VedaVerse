@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crop Recommendation System</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #eef7ee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            margin: 50px auto;
+            padding: 30px;
+            border: 2px solid #28a745;
+            border-radius: 15px;
+            max-width: 1200px;
+            background-color: #f9fff9;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            color: #28a745;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .form-group {
+            width: 60%;
+        }
+        .form-label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .form-control {
+            width: 100%;
+        }
+        .image-section {
+            width: 35%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 50px; /* Moves the image section down */
+            margin-left: -30px; /* Aligns the image section a little to the left */
+        }
+        .image-section img {
+            max-width: 100%;
+            height: 580px;
+            border-radius: 10px;
+            border: 3px solid #28a745; /* Green border around the image */
+        }
+        .btn-predict {
+            background-color: #28a745;
+            color: white;
+            font-weight: bold;
+            margin-top: 20px;
+            width: 100%;
+        }
+        .result-container {
+            margin-top: 30px;
+            border: 2px solid #28a745;
+            padding: 20px;
+            background-color: #e3ffe3;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .result-container h3 {
+            color: #28a745;
+            text-align: center;
+        }
+        .ai-suggestions {
+            margin-top: 20px;
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #28a745;
+            box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Crop Recommendation System</h1>
+        <form id="cropForm" method="POST">
+            <div class="input-section">
+                <div class="form-group">
+                    <label class="form-label" for="location">Enter Location</label>
+                    <input type="text" class="form-control" id="location" name="location" required>
+
+                    <label class="form-label" for="nitrogen">Enter Nitrogen (N)</label>
+                    <input type="text" class="form-control" id="nitrogen" name="nitrogen" required>
+
+                    <label class="form-label" for="phosphorus">Enter Phosphorus (p)</label>
+                    <input type="text" class="form-control" id="phosphorus" name="phosphorus" required>
+
+                    <label class="form-label" for="potassium">Enter Potassium (k)</label>
+                    <input type="text" class="form-control" id="potassium" name="potassium" required>
+
+                    <label class="form-label" for="temperature">Enter Temperature (°C)</label>
+                    <input type="text" class="form-control" id="temperature" name="temperature" required>
+
+                    <label class="form-label" for="humidity">Enter Humidity (%)</label>
+                    <input type="text" class="form-control" id="humidity" name="humidity" required>
+
+                    <label class="form-label" for="ph">Enter pH Level</label>
+                    <input type="text" class="form-control" id="ph" name="ph" required>
+
+                    <label class="form-label" for="rainfall">Enter Rainfall (mm)</label>
+                    <input type="text" class="form-control" id="rainfall" name="rainfall" required>
+                </div>
+                <div class="image-section">
+                    <img src="https://www.shutterstock.com/image-photo/young-corn-plants-growing-on-600nw-2299683499.jpg" alt="Crop Image">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-predict">Predict Crop</button>
+        </form>
+
+        <!-- Results will be shown here -->
+        <div class="result-container" id="resultContainer" style="display:none;">
+            <h3>Predicted Crop: <span id="predictedCrop"></span></h3>
+            <div class="ai-suggestions" id="aiSuggestions"></div>
+        </div>
+    </div>
+
+    <!-- Bootstrap and jQuery JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#cropForm').on('submit', function(event) {
+                event.preventDefault();
+                $.ajax({
+                    url: '/predict',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        $('#predictedCrop').text(response.predicted_crop);
+                        $('#aiSuggestions').text(response.ai_suggestions);
+                        $('#resultContainer').show();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
